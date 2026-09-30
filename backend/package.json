@@ -12,7 +12,7 @@
     "worker:prod": "node dist/workers/index.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "postinstall": "rm -rf node_modules/@npm-outreach/shared && mkdir -p node_modules/@npm-outreach && ln -sfn ../../../shared node_modules/@npm-outreach/shared",
+    "postinstall": "node scripts/postinstall.js",
     "lint": "eslint src test --ext .ts",
     "typecheck": "npm run build --prefix ../shared && tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
     "test": "npm run build --prefix ../shared && vitest run"

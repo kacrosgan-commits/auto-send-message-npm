@@ -40,7 +40,13 @@ The schema uses standard Postgres enums, UUID columns, and `jsonb`. It does not 
 
 ```bash
 cd backend
-cp .env.example .env
+npm install
+```
+
+`npm install` creates `backend/.env` from `.env.example` when that file is missing. On Windows, do not copy `.env` by hand unless install did not create it:
+
+```bat
+copy .env.example .env
 ```
 
 Set:
@@ -66,7 +72,7 @@ npx prisma generate
 npx prisma migrate dev
 ```
 
-`npm install` links `shared/`. `migrate dev` applies `prisma/migrations/20260929120000_init`. On a machine that already has the migration and only needs to apply it (CI or production), use:
+`npm install` links `shared/` with a Node script, including on Windows. `migrate dev` reads `DATABASE_URL` from `backend/.env` and applies `prisma/migrations/20260929120000_init`. On a machine that already has the migration and only needs to apply it (CI or production), use:
 
 ```bash
 npx prisma migrate deploy
