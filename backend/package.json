@@ -25,7 +25,6 @@
     "dotenv": "^16.4.7",
     "fastify": "^4.28.1",
     "googleapis": "^144.0.0",
-    "pg-boss": "^9.0.3",
     "zod": "^3.24.2"
   },
   "devDependencies": {

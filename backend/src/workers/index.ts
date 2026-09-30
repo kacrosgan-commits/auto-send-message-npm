@@ -1,14 +1,15 @@
 import 'dotenv/config';
 import { loadConfig } from '../config/env';
-import { createPrismaClient, createPrismaStore } from '../db/prisma-store';
-import { createPgBossQueue } from '../services/queue/boss';
+import { createPrismaClient, createPrismaStore, prepareDatabase } from '../db/prisma-store';
+import { createSendQueue } from '../services/queue/boss';
 
 async function main() {
   const config = loadConfig();
   if (!config.databaseUrl) throw new Error('DATABASE_URL is required');
   const prisma = createPrismaClient();
+  await prepareDatabase(prisma);
   const db = createPrismaStore(prisma);
-  const queue = createPgBossQueue(config, db);
+  const queue = createSendQueue(config, db, prisma);
   await queue.start();
   console.log('gmail-send worker started');
   const shutdown = async () => {

@@ -7,8 +7,8 @@ Discovery still searches the public npm registry. Finding an address does not se
 ```
 Chrome extension
     -> Backend REST API
-        -> PostgreSQL / Supabase
-        -> pg-boss queue (gmail-send)
+        -> SQLite
+        -> send queue stored in SQLite (gmail-send)
         -> Gmail OAuth 2.0
         -> Gmail API users.messages.send
         -> one recipient
@@ -19,22 +19,12 @@ The extension never stores a Gmail password or an OAuth refresh token.
 ## Layout
 
 - `extension/` Manifest V3 collector and outreach UI. Load `extension/build` after `npm run build`.
-- `backend/` Fastify API, Prisma, pg-boss worker.
+- `backend/` Fastify API, Prisma, SQLite, and a file-backed send worker.
 - `shared/` email normalization, template rendering, and shared status types.
 
-## 1. PostgreSQL or Supabase
+## 1. SQLite
 
-Create an empty Postgres database.
-
-Local example:
-
-```sql
-CREATE DATABASE npm_outreach;
-```
-
-Supabase: create a project, open **Project Settings → Database**, and copy the URI. Use the direct connection string (port 5432) for Prisma migrations. The pooler (port 6543) is optional for the running API, but migrations should use a direct connection.
-
-The schema uses standard Postgres enums, UUID columns, and `jsonb`. It does not require Supabase-specific features. pg-boss creates its own tables in the same database when the worker starts.
+The API stores contacts, campaigns, and the send queue in a local SQLite file. No PostgreSQL server and no Redis process are required. Prisma creates the file during migration.
 
 ## 2. DATABASE_URL
 
@@ -49,19 +39,13 @@ npm install
 copy .env.example .env
 ```
 
-Set:
+If `backend/.env` already exists from an earlier PostgreSQL setup, replace the database line with:
 
 ```
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/npm_outreach?schema=public
+DATABASE_URL="file:./dev.db"
 ```
 
-Supabase shape:
-
-```
-DATABASE_URL=postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:5432/postgres?schema=public
-```
-
-Do not commit `.env`.
+That path is relative to `backend/prisma/`. The file is `backend/prisma/dev.db`. Do not commit `.env` or the database file.
 
 ## 3. Prisma migration
 
@@ -72,7 +56,7 @@ npx prisma generate
 npx prisma migrate dev
 ```
 
-`npm install` links `shared/` with a Node script, including on Windows. `migrate dev` reads `DATABASE_URL` from `backend/.env` and applies `prisma/migrations/20260929120000_init`. On a machine that already has the migration and only needs to apply it (CI or production), use:
+`npm install` links `shared/` with a Node script, including on Windows. `migrate dev` reads `DATABASE_URL` from `backend/.env` and creates the SQLite file. On a machine that already has the migration and only needs to apply it, use:
 
 ```bash
 npx prisma migrate deploy
@@ -117,7 +101,7 @@ Production must be the public API origin plus `/api/auth/google/callback`. Put t
 
 | Variable | Purpose |
 | --- | --- |
-| `DATABASE_URL` | Postgres connection |
+| `DATABASE_URL` | SQLite file URL. Local default: `file:./dev.db` |
 | `PORT` | API port, default `3000` |
 | `BACKEND_API_KEY` | Bearer token the extension sends. Use a long random string. |
 | `GOOGLE_CLIENT_ID` | OAuth client id |
@@ -158,7 +142,7 @@ cd backend
 npm run worker
 ```
 
-The worker listens to the `gmail-send` pg-boss queue. The API can boot without the worker; queued jobs wait until the worker is running. Set `RUN_WORKER_IN_SERVER=true` only when you want one process to do both during local development.
+The worker polls the `SendJob` table in the same SQLite file. The API can boot without the worker; queued jobs wait until the worker is running. Set `RUN_WORKER_IN_SERVER=true` only when you want one process to do both during local development. Run the API and the worker on the same machine so both can open `dev.db`.
 
 ## 11. Chrome extension installation
 
@@ -343,6 +327,7 @@ Sensitive routes are rate limited.
 - Send caps are application safety limits. Gmail can still reject mail under its own policies.
 - Retry spacing is 30 seconds after the first failure and 2 minutes after the second. The third attempt is the last one.
 - If Gmail accepts a message and the database update fails, the worker writes a `SendReconciliation` row and a later job finalizes that row instead of sending again.
-- pg-boss needs the same Postgres database. Redis is not used.
+- The database is a local SQLite file. The API and worker must run on the same computer and use the same `DATABASE_URL`.
+- Run one worker. SQLite does not provide the row locks PostgreSQL used for concurrent senders.
 - The contacts "Suppressed" filter includes every suppression row, including addresses suppressed because they were already contacted. Those still display as contacted in discovery.
 - Node.js 20 is the comfortable target. The project typechecks and tests on Node 18.19; some transitive packages warn that they prefer Node 20.

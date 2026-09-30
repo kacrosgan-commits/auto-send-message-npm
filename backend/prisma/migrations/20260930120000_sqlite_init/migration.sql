@@ -1,143 +1,127 @@
--- CreateEnum
-CREATE TYPE "ContactStatus" AS ENUM ('NEW', 'QUEUED', 'CONTACTED', 'BOUNCED', 'INVALID', 'UNSUBSCRIBED', 'BLOCKED');
-
--- CreateEnum
-CREATE TYPE "CampaignStatus" AS ENUM ('DRAFT', 'QUEUED', 'RUNNING', 'PAUSED', 'COMPLETED', 'CANCELLED');
-
--- CreateEnum
-CREATE TYPE "RecipientStatus" AS ENUM ('PENDING', 'QUEUED', 'PROCESSING', 'SENT', 'FAILED', 'SKIPPED', 'CANCELLED');
-
--- CreateEnum
-CREATE TYPE "SuppressionReason" AS ENUM ('ALREADY_CONTACTED', 'UNSUBSCRIBED', 'HARD_BOUNCE', 'COMPLAINT', 'INVALID', 'MANUAL_BLOCK');
-
 -- CreateTable
 CREATE TABLE "Contact" (
-    "id" UUID NOT NULL,
+    "id" TEXT NOT NULL PRIMARY KEY,
     "email" TEXT NOT NULL,
     "normalizedEmail" TEXT NOT NULL,
     "name" TEXT,
     "firstName" TEXT,
     "lastName" TEXT,
-    "status" "ContactStatus" NOT NULL DEFAULT 'NEW',
-    "firstDiscoveredAt" TIMESTAMP(3) NOT NULL,
-    "lastDiscoveredAt" TIMESTAMP(3) NOT NULL,
-    "firstSentAt" TIMESTAMP(3),
-    "lastSentAt" TIMESTAMP(3),
+    "status" TEXT NOT NULL DEFAULT 'NEW',
+    "firstDiscoveredAt" DATETIME NOT NULL,
+    "lastDiscoveredAt" DATETIME NOT NULL,
+    "firstSentAt" DATETIME,
+    "lastSentAt" DATETIME,
     "sendCount" INTEGER NOT NULL DEFAULT 0,
     "unsubscribeToken" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "Contact_pkey" PRIMARY KEY ("id")
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
 );
 
 -- CreateTable
 CREATE TABLE "ContactSource" (
-    "id" UUID NOT NULL,
-    "contactId" UUID NOT NULL,
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "contactId" TEXT NOT NULL,
     "sourceType" TEXT NOT NULL,
     "packageName" TEXT NOT NULL,
     "packageUrl" TEXT,
     "npmKeyword" TEXT,
     "sourceRole" TEXT NOT NULL,
-    "discoveredAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "ContactSource_pkey" PRIMARY KEY ("id")
+    "discoveredAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "ContactSource_contactId_fkey" FOREIGN KEY ("contactId") REFERENCES "Contact" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateTable
 CREATE TABLE "Campaign" (
-    "id" UUID NOT NULL,
+    "id" TEXT NOT NULL PRIMARY KEY,
     "name" TEXT NOT NULL,
     "subject" TEXT NOT NULL,
     "bodyText" TEXT NOT NULL,
     "bodyHtml" TEXT,
-    "status" "CampaignStatus" NOT NULL DEFAULT 'DRAFT',
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "startedAt" TIMESTAMP(3),
-    "pausedAt" TIMESTAMP(3),
-    "completedAt" TIMESTAMP(3),
-
-    CONSTRAINT "Campaign_pkey" PRIMARY KEY ("id")
+    "status" TEXT NOT NULL DEFAULT 'DRAFT',
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "startedAt" DATETIME,
+    "pausedAt" DATETIME,
+    "completedAt" DATETIME
 );
 
 -- CreateTable
 CREATE TABLE "CampaignRecipient" (
-    "id" UUID NOT NULL,
-    "campaignId" UUID NOT NULL,
-    "contactId" UUID NOT NULL,
-    "status" "RecipientStatus" NOT NULL DEFAULT 'PENDING',
-    "scheduledAt" TIMESTAMP(3),
-    "sentAt" TIMESTAMP(3),
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "campaignId" TEXT NOT NULL,
+    "contactId" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'PENDING',
+    "scheduledAt" DATETIME,
+    "sentAt" DATETIME,
     "attempts" INTEGER NOT NULL DEFAULT 0,
     "gmailMessageId" TEXT,
     "gmailThreadId" TEXT,
     "lastError" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "CampaignRecipient_pkey" PRIMARY KEY ("id")
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "CampaignRecipient_campaignId_fkey" FOREIGN KEY ("campaignId") REFERENCES "Campaign" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "CampaignRecipient_contactId_fkey" FOREIGN KEY ("contactId") REFERENCES "Contact" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateTable
 CREATE TABLE "Suppression" (
-    "id" UUID NOT NULL,
+    "id" TEXT NOT NULL PRIMARY KEY,
     "normalizedEmail" TEXT NOT NULL,
-    "reason" "SuppressionReason" NOT NULL,
+    "reason" TEXT NOT NULL,
     "notes" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "Suppression_pkey" PRIMARY KEY ("id")
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- CreateTable
 CREATE TABLE "GmailAccount" (
-    "id" UUID NOT NULL,
+    "id" TEXT NOT NULL PRIMARY KEY,
     "email" TEXT NOT NULL,
     "googleAccountId" TEXT NOT NULL,
     "encryptedRefreshToken" TEXT NOT NULL,
     "scopes" TEXT NOT NULL,
-    "connectedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    "isActive" BOOLEAN NOT NULL DEFAULT true,
-
-    CONSTRAINT "GmailAccount_pkey" PRIMARY KEY ("id")
+    "connectedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    "isActive" BOOLEAN NOT NULL DEFAULT true
 );
 
 -- CreateTable
 CREATE TABLE "AuditLog" (
-    "id" UUID NOT NULL,
+    "id" TEXT NOT NULL PRIMARY KEY,
     "eventType" TEXT NOT NULL,
     "entityType" TEXT NOT NULL,
     "entityId" TEXT,
-    "metadata" JSONB NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "AuditLog_pkey" PRIMARY KEY ("id")
+    "metadata" TEXT NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- CreateTable
 CREATE TABLE "SendReconciliation" (
-    "id" UUID NOT NULL,
+    "id" TEXT NOT NULL PRIMARY KEY,
     "campaignRecipientId" TEXT NOT NULL,
     "gmailMessageId" TEXT NOT NULL,
     "gmailThreadId" TEXT,
     "normalizedEmail" TEXT NOT NULL,
     "error" TEXT NOT NULL,
     "resolved" BOOLEAN NOT NULL DEFAULT false,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "SendReconciliation_pkey" PRIMARY KEY ("id")
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- CreateTable
 CREATE TABLE "OauthState" (
-    "id" UUID NOT NULL,
+    "id" TEXT NOT NULL PRIMARY KEY,
     "state" TEXT NOT NULL,
-    "expiresAt" TIMESTAMP(3) NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "expiresAt" DATETIME NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 
-    CONSTRAINT "OauthState_pkey" PRIMARY KEY ("id")
+-- CreateTable
+CREATE TABLE "SendJob" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "campaignRecipientId" TEXT NOT NULL,
+    "singletonKey" TEXT NOT NULL,
+    "runAt" DATETIME NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'PENDING',
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
 );
 
 -- CreateIndex
@@ -206,12 +190,9 @@ CREATE UNIQUE INDEX "SendReconciliation_campaignRecipientId_key" ON "SendReconci
 -- CreateIndex
 CREATE UNIQUE INDEX "OauthState_state_key" ON "OauthState"("state");
 
--- AddForeignKey
-ALTER TABLE "ContactSource" ADD CONSTRAINT "ContactSource_contactId_fkey" FOREIGN KEY ("contactId") REFERENCES "Contact"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+-- CreateIndex
+CREATE UNIQUE INDEX "SendJob_singletonKey_key" ON "SendJob"("singletonKey");
 
--- AddForeignKey
-ALTER TABLE "CampaignRecipient" ADD CONSTRAINT "CampaignRecipient_campaignId_fkey" FOREIGN KEY ("campaignId") REFERENCES "Campaign"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "CampaignRecipient" ADD CONSTRAINT "CampaignRecipient_contactId_fkey" FOREIGN KEY ("contactId") REFERENCES "Contact"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+-- CreateIndex
+CREATE INDEX "SendJob_status_runAt_idx" ON "SendJob"("status", "runAt");
 

@@ -3,64 +3,26 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
-enum ContactStatus {
-  NEW
-  QUEUED
-  CONTACTED
-  BOUNCED
-  INVALID
-  UNSUBSCRIBED
-  BLOCKED
-}
-
-enum CampaignStatus {
-  DRAFT
-  QUEUED
-  RUNNING
-  PAUSED
-  COMPLETED
-  CANCELLED
-}
-
-enum RecipientStatus {
-  PENDING
-  QUEUED
-  PROCESSING
-  SENT
-  FAILED
-  SKIPPED
-  CANCELLED
-}
-
-enum SuppressionReason {
-  ALREADY_CONTACTED
-  UNSUBSCRIBED
-  HARD_BOUNCE
-  COMPLAINT
-  INVALID
-  MANUAL_BLOCK
-}
-
 model Contact {
-  id                String        @id @default(uuid()) @db.Uuid
+  id                String   @id @default(uuid())
   email             String
-  normalizedEmail   String        @unique
+  normalizedEmail   String   @unique
   name              String?
   firstName         String?
   lastName          String?
-  status            ContactStatus @default(NEW)
+  status            String   @default("NEW")
   firstDiscoveredAt DateTime
   lastDiscoveredAt  DateTime
   firstSentAt       DateTime?
   lastSentAt        DateTime?
-  sendCount         Int           @default(0)
-  unsubscribeToken  String        @unique
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+  sendCount         Int      @default(0)
+  unsubscribeToken  String   @unique
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
   sources           ContactSource[]
   recipients        CampaignRecipient[]
 
@@ -69,8 +31,8 @@ model Contact {
 }
 
 model ContactSource {
-  id           String   @id @default(uuid()) @db.Uuid
-  contactId    String   @db.Uuid
+  id           String   @id @default(uuid())
+  contactId    String
   sourceType   String
   packageName  String
   packageUrl   String?
@@ -85,13 +47,13 @@ model ContactSource {
 }
 
 model Campaign {
-  id          String         @id @default(uuid()) @db.Uuid
+  id          String    @id @default(uuid())
   name        String
   subject     String
   bodyText    String
   bodyHtml    String?
-  status      CampaignStatus @default(DRAFT)
-  createdAt   DateTime       @default(now())
+  status      String    @default("DRAFT")
+  createdAt   DateTime  @default(now())
   startedAt   DateTime?
   pausedAt    DateTime?
   completedAt DateTime?
@@ -102,20 +64,20 @@ model Campaign {
 }
 
 model CampaignRecipient {
-  id              String          @id @default(uuid()) @db.Uuid
-  campaignId      String          @db.Uuid
-  contactId       String          @db.Uuid
-  status          RecipientStatus @default(PENDING)
-  scheduledAt     DateTime?
-  sentAt          DateTime?
-  attempts        Int             @default(0)
-  gmailMessageId  String?
-  gmailThreadId   String?
-  lastError       String?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  campaign        Campaign        @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  contact         Contact         @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  id             String    @id @default(uuid())
+  campaignId     String
+  contactId      String
+  status         String    @default("PENDING")
+  scheduledAt    DateTime?
+  sentAt         DateTime?
+  attempts       Int       @default(0)
+  gmailMessageId String?
+  gmailThreadId  String?
+  lastError      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  campaign       Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contact        Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
 
   @@unique([campaignId, contactId])
   @@index([status])
@@ -124,17 +86,17 @@ model CampaignRecipient {
 }
 
 model Suppression {
-  id              String            @id @default(uuid()) @db.Uuid
-  normalizedEmail String            @unique
-  reason          SuppressionReason
+  id              String   @id @default(uuid())
+  normalizedEmail String   @unique
+  reason          String
   notes           String?
-  createdAt       DateTime          @default(now())
+  createdAt       DateTime @default(now())
 
   @@index([reason])
 }
 
 model GmailAccount {
-  id                    String   @id @default(uuid()) @db.Uuid
+  id                    String   @id @default(uuid())
   email                 String
   googleAccountId       String   @unique
   encryptedRefreshToken String
@@ -147,11 +109,11 @@ model GmailAccount {
 }
 
 model AuditLog {
-  id         String   @id @default(uuid()) @db.Uuid
+  id         String   @id @default(uuid())
   eventType  String
   entityType String
   entityId   String?
-  metadata   Json
+  metadata   String
   createdAt  DateTime @default(now())
 
   @@index([eventType])
@@ -160,19 +122,31 @@ model AuditLog {
 }
 
 model SendReconciliation {
-  id                   String   @id @default(uuid()) @db.Uuid
-  campaignRecipientId  String   @unique
-  gmailMessageId       String
-  gmailThreadId        String?
-  normalizedEmail      String
-  error                String
-  resolved             Boolean  @default(false)
-  createdAt            DateTime @default(now())
+  id                  String   @id @default(uuid())
+  campaignRecipientId String   @unique
+  gmailMessageId      String
+  gmailThreadId       String?
+  normalizedEmail     String
+  error               String
+  resolved            Boolean  @default(false)
+  createdAt           DateTime @default(now())
 }
 
 model OauthState {
-  id        String   @id @default(uuid()) @db.Uuid
+  id        String   @id @default(uuid())
   state     String   @unique
   expiresAt DateTime
   createdAt DateTime @default(now())
+}
+
+model SendJob {
+  id                  String   @id @default(uuid())
+  campaignRecipientId String
+  singletonKey        String   @unique
+  runAt               DateTime
+  status              String   @default("PENDING")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([status, runAt])
 }

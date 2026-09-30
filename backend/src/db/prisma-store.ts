@@ -1,5 +1,5 @@
 import { Prisma, PrismaClient } from '@prisma/client';
-import { ContactStatus, RecipientStatus } from '@npm-outreach/shared';
+import { CampaignStatus, ContactStatus, RecipientStatus, SuppressionReason } from '@npm-outreach/shared';
 import {
   AuditRecord,
   CampaignRecord,
@@ -17,8 +17,13 @@ type DbClient = PrismaClient | Prisma.TransactionClient;
 const CONTACT_STATUSES: ContactStatus[] = ['NEW', 'QUEUED', 'CONTACTED', 'BOUNCED', 'INVALID', 'UNSUBSCRIBED', 'BLOCKED'];
 const RECIPIENT_STATUSES: RecipientStatus[] = ['PENDING', 'QUEUED', 'PROCESSING', 'SENT', 'FAILED', 'SKIPPED', 'CANCELLED'];
 
-function asRecord(value: Prisma.JsonValue): Record<string, unknown> {
-  if (value && typeof value === 'object' && !Array.isArray(value)) return value as Record<string, unknown>;
+function asRecord(value: string): Record<string, unknown> {
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed as Record<string, unknown>;
+  } catch {
+    return {};
+  }
   return {};
 }
 
@@ -29,7 +34,7 @@ function mapContact(row: {
   name: string | null;
   firstName: string | null;
   lastName: string | null;
-  status: ContactStatus;
+  status: string;
   firstDiscoveredAt: Date;
   lastDiscoveredAt: Date;
   firstSentAt: Date | null;
@@ -39,23 +44,23 @@ function mapContact(row: {
   createdAt: Date;
   updatedAt: Date;
 }): ContactRecord {
-  return { ...row };
+  return { ...row, status: row.status as ContactStatus };
 }
 
 function mapSource(row: ContactSourceRecord): ContactSourceRecord {
   return { ...row };
 }
 
-function mapCampaign(row: CampaignRecord): CampaignRecord {
-  return { ...row };
+function mapCampaign(row: Omit<CampaignRecord, 'status'> & { status: string }): CampaignRecord {
+  return { ...row, status: row.status as CampaignStatus };
 }
 
-function mapRecipient(row: RecipientRecord | null): RecipientRecord | null {
-  return row ? { ...row } : null;
+function mapRecipient(row: (Omit<RecipientRecord, 'status'> & { status: string }) | null): RecipientRecord | null {
+  return row ? { ...row, status: row.status as RecipientStatus } : null;
 }
 
-function mapSuppression(row: SuppressionRecord): SuppressionRecord {
-  return { ...row };
+function mapSuppression(row: Omit<SuppressionRecord, 'reason'> & { reason: string }): SuppressionRecord {
+  return { ...row, reason: row.reason as SuppressionReason };
 }
 
 export function createPrismaStore(client: DbClient): OutreachDb {
@@ -90,19 +95,20 @@ export function createPrismaStore(client: DbClient): OutreachDb {
         if (params.status) and.push({ status: params.status });
         if (params.contacted === false) and.push({ firstSentAt: null, status: { not: 'CONTACTED' } });
         if (params.contacted === true) and.push({ OR: [{ firstSentAt: { not: null } }, { status: 'CONTACTED' }] });
-        if (params.suppressed === false && params.suppressedEmails) {
+        if (params.suppressed === false && params.suppressedEmails && params.suppressedEmails.size > 0) {
           and.push({ normalizedEmail: { notIn: [...params.suppressedEmails] } });
         }
-        if (params.suppressed === true && params.suppressedEmails) {
-          and.push({ normalizedEmail: { in: [...params.suppressedEmails] } });
+        if (params.suppressed === true) {
+          const emails = [...(params.suppressedEmails ?? [])];
+          and.push(emails.length ? { normalizedEmail: { in: emails } } : { id: '__none__' });
         }
         if (params.search) {
           and.push({
             OR: [
-              { email: { contains: params.search, mode: 'insensitive' } },
-              { name: { contains: params.search, mode: 'insensitive' } },
-              { normalizedEmail: { contains: params.search.toLowerCase(), mode: 'insensitive' } },
-              { sources: { some: { packageName: { contains: params.search, mode: 'insensitive' } } } },
+              { email: { contains: params.search } },
+              { name: { contains: params.search } },
+              { normalizedEmail: { contains: params.search.toLowerCase() } },
+              { sources: { some: { packageName: { contains: params.search } } } },
             ],
           });
         }
@@ -153,14 +159,13 @@ export function createPrismaStore(client: DbClient): OutreachDb {
         return mapContact(row);
       },
       async lock(id) {
-        await client.$queryRaw`SELECT id FROM "Contact" WHERE id = CAST(${id} AS uuid) FOR UPDATE`;
         const row = await client.contact.findUnique({ where: { id } });
         return row ? mapContact(row) : null;
       },
       async countByStatus() {
         const groups = await client.contact.groupBy({ by: ['status'], _count: { _all: true } });
         const counts = Object.fromEntries(CONTACT_STATUSES.map((status) => [status, 0])) as Record<ContactStatus, number>;
-        for (const group of groups) counts[group.status] = group._count._all;
+        for (const group of groups) counts[group.status as ContactStatus] = group._count._all;
         return counts;
       },
     },
@@ -283,7 +288,6 @@ export function createPrismaStore(client: DbClient): OutreachDb {
         return mapRecipient(await client.campaignRecipient.findUnique({ where: { id } }));
       },
       async lock(id) {
-        await client.$queryRaw`SELECT id FROM "CampaignRecipient" WHERE id = CAST(${id} AS uuid) FOR UPDATE`;
         return mapRecipient(await client.campaignRecipient.findUnique({ where: { id } }));
       },
       async findByCampaignContact(campaignId, contactId) {
@@ -325,7 +329,7 @@ export function createPrismaStore(client: DbClient): OutreachDb {
           _count: { _all: true },
         });
         const counts = Object.fromEntries(RECIPIENT_STATUSES.map((status) => [status, 0])) as Record<RecipientStatus, number>;
-        for (const group of groups) counts[group.status] = group._count._all;
+        for (const group of groups) counts[group.status as RecipientStatus] = group._count._all;
         return counts;
       },
       async sendWindow(now) {
@@ -350,11 +354,11 @@ export function createPrismaStore(client: DbClient): OutreachDb {
         };
         if (params.search) {
           where.OR = [
-            { contact: { email: { contains: params.search, mode: 'insensitive' } } },
-            { contact: { name: { contains: params.search, mode: 'insensitive' } } },
-            { campaign: { name: { contains: params.search, mode: 'insensitive' } } },
-            { gmailMessageId: { contains: params.search, mode: 'insensitive' } },
-            { contact: { sources: { some: { packageName: { contains: params.search, mode: 'insensitive' } } } } },
+            { contact: { email: { contains: params.search } } },
+            { contact: { name: { contains: params.search } } },
+            { campaign: { name: { contains: params.search } } },
+            { gmailMessageId: { contains: params.search } },
+            { contact: { sources: { some: { packageName: { contains: params.search } } } } },
           ];
         }
         const [total, rows] = await Promise.all([
@@ -381,7 +385,7 @@ export function createPrismaStore(client: DbClient): OutreachDb {
             packageName: row.contact.sources[0]?.packageName ?? null,
             sentAt: row.sentAt,
             gmailMessageId: row.gmailMessageId,
-            status: row.status,
+            status: row.status as RecipientStatus,
             lastError: row.lastError,
           })),
         };
@@ -416,7 +420,7 @@ export function createPrismaStore(client: DbClient): OutreachDb {
             eventType: event.eventType,
             entityType: event.entityType,
             entityId: event.entityId ?? null,
-            metadata: (event.metadata ?? {}) as Prisma.InputJsonValue,
+            metadata: JSON.stringify(event.metadata ?? {}),
           },
         });
         const record: AuditRecord = {
@@ -531,4 +535,9 @@ function mapReconciliation(row: ReconciliationRecord): ReconciliationRecord {
 
 export function createPrismaClient(): PrismaClient {
   return new PrismaClient();
+}
+
+export async function prepareDatabase(prisma: PrismaClient): Promise<void> {
+  await prisma.$queryRawUnsafe('PRAGMA journal_mode = WAL');
+  await prisma.$queryRawUnsafe('PRAGMA busy_timeout = 5000');
 }
