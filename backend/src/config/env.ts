@@ -24,7 +24,7 @@ const envSchema = z.object({
   EXTENSION_ORIGIN: z.string().optional().default(''),
   ALLOW_REPEAT_CONTACT: boolFromEnv(false),
   INCLUDE_UNSUBSCRIBE_LINK: boolFromEnv(true),
-  RUN_WORKER_IN_SERVER: boolFromEnv(false),
+  RUN_WORKER_IN_SERVER: boolFromEnv(true),
 });
 
 export interface AppConfig {

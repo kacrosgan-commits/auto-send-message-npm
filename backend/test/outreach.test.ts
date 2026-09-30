@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { isNoreplyAddress, normalizeEmail, renderTemplate, retryDelayMs } from '@npm-outreach/shared';
 import { createMemoryDb } from '../src/db/memory.js';
-import { selectCampaignRecipients, queueCampaign } from '../src/services/campaigns/campaign-service.js';
+import { selectCampaignRecipients, queueCampaign, setCampaignControl } from '../src/services/campaigns/campaign-service.js';
 import { ingestContacts } from '../src/services/contacts/contact-service.js';
 import { GmailSender, processSendJob } from '../src/services/queue/process-send.js';
 import { OutreachDb } from '../src/db/types.js';
@@ -63,6 +63,7 @@ describe('email rules', () => {
 
   it('falls back when firstName is empty and blocks unknown variables', () => {
     expect(renderTemplate('Hi {{firstName}},', { firstName: '' }).text).toBe('Hi,');
+    expect(renderTemplate('Hi {{first name}},', { firstName: 'Ada' }).text).toBe('Hi Ada,');
     expect(renderTemplate('Hi {{nickname}},', {}).unresolved).toEqual(['nickname']);
   });
 
@@ -146,6 +147,39 @@ describe('campaign duplicate prevention', () => {
     const recipients = await db.recipients.listByCampaign(campaign.id);
     expect(recipients).toHaveLength(1);
     expect(new Set(jobs).size).toBe(jobs.length === 0 ? 0 : 1);
+  });
+
+  it('start sends jobs for pending recipients on a running campaign', async () => {
+    const db = createMemoryDb();
+    await db.gmailAccounts.upsert({
+      email: 'me@gmail.com',
+      googleAccountId: 'g-1',
+      encryptedRefreshToken: 'encrypted',
+      scopes: 'https://www.googleapis.com/auth/gmail.send',
+    });
+    await ingestOne(db, 'pending@example.com', 'pkg');
+    const contact = await db.contacts.findByNormalized('pending@example.com');
+    const campaign = await db.campaigns.create({ name: 'Live', subject: 'Hi', bodyText: 'Hello', bodyHtml: null });
+    await selectCampaignRecipients(db, campaign.id, { contactIds: [contact!.id] }, false);
+    await db.campaigns.update(campaign.id, { status: 'RUNNING', startedAt: new Date() });
+    const jobs: string[] = [];
+    const updated = await setCampaignControl(db, campaign.id, 'start', async (id) => { jobs.push(id); }, false);
+    const recipients = await db.recipients.listByCampaign(campaign.id);
+    expect(updated?.status).toBe('RUNNING');
+    expect(recipients).toHaveLength(1);
+    expect(recipients[0].status).toBe('QUEUED');
+    expect(jobs).toEqual([recipients[0].id]);
+  });
+
+  it('adds selected contacts to a campaign that is already running', async () => {
+    const db = createMemoryDb();
+    await ingestOne(db, 'live@example.com', 'pkg');
+    const contact = await db.contacts.findByNormalized('live@example.com');
+    const campaign = await db.campaigns.create({ name: 'Live', subject: 'Hi', bodyText: 'Hello', bodyHtml: null });
+    await db.campaigns.update(campaign.id, { status: 'RUNNING', startedAt: new Date() });
+    const selection = await selectCampaignRecipients(db, campaign.id, { contactIds: [contact!.id] }, false);
+    expect(selection.eligible).toBe(1);
+    expect((await db.recipients.listByCampaign(campaign.id))[0].status).toBe('PENDING');
   });
 });
 

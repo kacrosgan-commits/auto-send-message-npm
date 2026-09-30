@@ -424,11 +424,10 @@ async function saveCampaign(): Promise<string> {
   if (!payload.name || !payload.subject || !payload.bodyText) {
     throw new ApiError(0, 'VALIDATION', 'Campaign name, subject, and body are required.');
   }
-  if (activeCampaignId && activeCampaignStatus === 'DRAFT') {
+  if (activeCampaignId && activeCampaignStatus !== 'COMPLETED' && activeCampaignStatus !== 'CANCELLED') {
     await apiRequest(settings, `/api/campaigns/${activeCampaignId}`, { method: 'PATCH', body: JSON.stringify(payload) });
     return activeCampaignId;
   }
-  if (activeCampaignId && activeCampaignStatus === 'PAUSED') return activeCampaignId;
   const created = await apiRequest<{ campaign: CampaignRow }>(settings, '/api/campaigns', { method: 'POST', body: JSON.stringify(payload) });
   activeCampaignId = created.campaign.id;
   activeCampaignStatus = created.campaign.status || 'DRAFT';
@@ -527,7 +526,7 @@ async function loadCampaignDetail() {
       $('detailCounts').appendChild(item);
     }
     const status = data.campaign.status;
-    ($('campaignStart') as HTMLButtonElement).disabled = status === 'RUNNING' || status === 'COMPLETED' || status === 'CANCELLED';
+    ($('campaignStart') as HTMLButtonElement).disabled = status === 'COMPLETED' || status === 'CANCELLED';
     ($('campaignPause') as HTMLButtonElement).disabled = status !== 'RUNNING' && status !== 'QUEUED';
     ($('campaignResume') as HTMLButtonElement).disabled = status !== 'PAUSED';
     ($('campaignCancel') as HTMLButtonElement).disabled = status === 'COMPLETED' || status === 'CANCELLED';
@@ -566,6 +565,10 @@ async function loadCampaignDetail() {
 }
 
 async function campaignAction(action: 'start' | 'pause' | 'resume' | 'cancel') {
+  if (action === 'start' && (selectAllNew || selectedIds.size > 0)) {
+    await reviewAndQueue();
+    return;
+  }
   if (!activeCampaignId) return;
   try {
     await apiRequest(settings, `/api/campaigns/${activeCampaignId}/${action}`, { method: 'POST', body: '{}' });

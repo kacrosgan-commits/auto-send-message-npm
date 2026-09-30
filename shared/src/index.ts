@@ -130,7 +130,18 @@ export function splitName(name: string | null | undefined): { firstName: string 
   };
 }
 
-const KNOWN_VARIABLES = new Set<string>(TEMPLATE_VARIABLES);
+const VARIABLE_ALIASES: Record<string, TemplateVariable> = {
+  name: 'name',
+  firstname: 'firstName',
+  email: 'email',
+  package: 'package',
+  packageurl: 'packageUrl',
+};
+
+function canonicalVariable(raw: string): TemplateVariable | null {
+  const key = raw.trim().toLowerCase().replace(/[\s_-]+/g, '');
+  return VARIABLE_ALIASES[key] ?? null;
+}
 
 export interface RenderedTemplate {
   text: string;
@@ -142,12 +153,14 @@ export function renderTemplate(
   vars: Partial<Record<TemplateVariable, string | null | undefined>>,
 ): RenderedTemplate {
   const source = String(input ?? '');
-  const unresolved = [...source.matchAll(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g)]
-    .map((match) => match[1])
-    .filter((name) => !KNOWN_VARIABLES.has(name));
-
-  let text = source.replace(/\{\{\s*(name|firstName|email|package|packageUrl)\s*\}\}/g, (_full, key: TemplateVariable) => {
-    const value = vars[key];
+  const unresolved: string[] = [];
+  let text = source.replace(/\{\{\s*([^}]+?)\s*\}\}/g, (full, raw: string) => {
+    const variable = canonicalVariable(raw);
+    if (!variable) {
+      unresolved.push(raw.trim());
+      return full;
+    }
+    const value = vars[variable];
     if (value == null) return '';
     return String(value);
   });

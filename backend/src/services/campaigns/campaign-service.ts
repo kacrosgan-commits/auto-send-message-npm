@@ -62,8 +62,8 @@ export async function selectCampaignRecipients(
 ): Promise<RecipientSelectionResult> {
   const campaign = await db.campaigns.find(campaignId);
   if (!campaign) throw new AppError(404, 'CAMPAIGN_NOT_FOUND', 'Campaign not found');
-  if (campaign.status !== 'DRAFT' && campaign.status !== 'PAUSED') {
-    throw new AppError(409, 'CAMPAIGN_NOT_EDITABLE', 'Recipients can only be added to draft or paused campaigns');
+  if (campaign.status === 'CANCELLED' || campaign.status === 'COMPLETED') {
+    throw new AppError(409, 'CAMPAIGN_NOT_EDITABLE', 'Recipients can only be added to an open campaign');
   }
 
   const contacts = await loadSelection(db, input);
@@ -124,9 +124,6 @@ export async function queueCampaign(db: OutreachDb, campaignId: string, allowRep
   if (campaign.status === 'CANCELLED' || campaign.status === 'COMPLETED') {
     throw new AppError(409, 'CAMPAIGN_CLOSED', 'This campaign can no longer be queued');
   }
-  if (campaign.status === 'RUNNING') {
-    return { queued: 0, skipped: 0, status: 'RUNNING' as const };
-  }
 
   const account = await db.gmailAccounts.getActive();
   if (!account) throw new AppError(409, 'GMAIL_NOT_CONNECTED', 'Connect a Gmail account before queueing a campaign');
@@ -166,7 +163,9 @@ export async function queueCampaign(db: OutreachDb, campaignId: string, allowRep
       if (contact.status === 'NEW') await tx.contacts.update(contact.id, { status: 'QUEUED' });
       queued += 1;
     }
-    const nextStatus = queued > 0 || recipients.some((row) => row.status === 'QUEUED') ? 'RUNNING' : campaign.status;
+    const nextStatus = queued > 0 || recipients.some((row) => row.status === 'QUEUED' || row.status === 'PROCESSING')
+      ? 'RUNNING'
+      : campaign.status;
     await tx.campaigns.update(campaignId, {
       status: nextStatus,
       startedAt: campaign.startedAt ?? new Date(),
@@ -180,7 +179,7 @@ export async function queueCampaign(db: OutreachDb, campaignId: string, allowRep
     });
   });
 
-  const queuedRows = (await db.recipients.listByCampaign(campaignId)).filter((row) => row.status === 'QUEUED');
+  const queuedRows = (await db.recipients.listByCampaign(campaignId)).filter((row) => row.status === 'QUEUED' || row.status === 'PROCESSING');
   for (const row of queuedRows) await enqueue(row.id);
   return { queued, skipped, status: queuedRows.length ? 'RUNNING' : campaign.status };
 }
@@ -190,6 +189,7 @@ export async function setCampaignControl(
   campaignId: string,
   action: 'start' | 'pause' | 'resume' | 'cancel',
   enqueue: (recipientId: string) => Promise<void>,
+  allowRepeatContact = false,
 ) {
   const campaign = await db.campaigns.find(campaignId);
   if (!campaign) throw new AppError(404, 'CAMPAIGN_NOT_FOUND', 'Campaign not found');
@@ -227,16 +227,14 @@ export async function setCampaignControl(
   if (campaign.status === 'CANCELLED' || campaign.status === 'COMPLETED') {
     throw new AppError(409, 'CAMPAIGN_CLOSED', 'This campaign is closed');
   }
-  const updated = await db.campaigns.update(campaignId, { status: 'RUNNING', pausedAt: null, startedAt: campaign.startedAt ?? now });
-  await db.audit.create({
-    eventType: action === 'resume' ? 'CAMPAIGN_RESUMED' : 'CAMPAIGN_QUEUED',
-    entityType: 'campaign',
-    entityId: campaignId,
-    metadata: { action },
-  });
-  const recipients = await db.recipients.listByCampaign(campaignId);
-  for (const recipient of recipients) {
-    if (recipient.status === 'QUEUED') await enqueue(recipient.id);
+  await queueCampaign(db, campaignId, allowRepeatContact, enqueue);
+  if (action === 'resume') {
+    await db.audit.create({
+      eventType: 'CAMPAIGN_RESUMED',
+      entityType: 'campaign',
+      entityId: campaignId,
+      metadata: { action },
+    });
   }
-  return updated;
+  return db.campaigns.find(campaignId);
 }

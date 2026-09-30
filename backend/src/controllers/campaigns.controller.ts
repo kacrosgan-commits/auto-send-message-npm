@@ -69,8 +69,8 @@ export function campaignsController(db: OutreachDb, config: AppConfig, enqueue: 
       const body = parseBody(patchSchema, request.body ?? {});
       const campaign = await db.campaigns.find(params.id);
       if (!campaign) throw new AppError(404, 'CAMPAIGN_NOT_FOUND', 'Campaign not found');
-      if (campaign.status !== 'DRAFT') {
-        throw new AppError(409, 'CAMPAIGN_NOT_EDITABLE', 'Only draft campaigns can be edited');
+      if (campaign.status === 'COMPLETED' || campaign.status === 'CANCELLED') {
+        throw new AppError(409, 'CAMPAIGN_NOT_EDITABLE', 'This campaign can no longer be edited');
       }
       const updated = await db.campaigns.update(params.id, {
         name: body.name,
@@ -104,7 +104,7 @@ export function campaignsController(db: OutreachDb, config: AppConfig, enqueue: 
     control(action: 'start' | 'pause' | 'resume' | 'cancel') {
       return async (request: FastifyRequest, reply: FastifyReply) => {
         const params = request.params as { id: string };
-        const campaign = await setCampaignControl(db, params.id, action, enqueue);
+        const campaign = await setCampaignControl(db, params.id, action, enqueue, config.allowRepeatContact);
         return reply.send({ campaign });
       };
     },
