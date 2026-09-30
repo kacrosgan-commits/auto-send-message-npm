@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>npm Public Email Collector</title>
+  <link rel="stylesheet" href="collector.css" />
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <div>
+        <h1>npm Public Email Collector</h1>
+        <p>Discover public npm emails, review them, then queue individual Gmail sends.</p>
+      </div>
+      <div class="headerActions">
+        <button id="openSettings" type="button">Settings</button>
+        <div class="badge">v3.0</div>
+      </div>
+    </header>
+
+    <nav class="tabs" aria-label="Sections">
+      <button type="button" data-tab="discovery" class="active">Discovery</button>
+      <button type="button" data-tab="contacts">Contacts</button>
+      <button type="button" data-tab="campaigns">Campaigns</button>
+      <button type="button" data-tab="gmail">Gmail</button>
+      <button type="button" data-tab="history">History</button>
+    </nav>
+
+    <section data-panel="discovery">
+      <section class="card controls">
+        <div class="grid">
+          <label>
+            <span>npm search keywords</span>
+            <input id="query" type="text" placeholder="react, typescript, node, cli, database" autocomplete="off" />
+            <small>Enter several keywords separated by commas, spaces, or new lines. Each keyword is searched separately.</small>
+          </label>
+          <label>
+            <span>Target unique emails</span>
+            <select id="target">
+              <option value="100">100</option>
+              <option value="200">200</option>
+              <option value="300">300</option>
+              <option value="400">400</option>
+              <option value="500" selected>500</option>
+            </select>
+          </label>
+          <label>
+            <span>Maximum packages to inspect</span>
+            <select id="maxPackages">
+              <option value="500">500</option>
+              <option value="1000">1,000</option>
+              <option value="1500" selected>1,500</option>
+              <option value="2000">2,000</option>
+              <option value="2500">2,500</option>
+            </select>
+          </label>
+          <label>
+            <span>Delay between package lookups</span>
+            <select id="delay">
+              <option value="250">250 ms</option>
+              <option value="400" selected>400 ms</option>
+              <option value="700">700 ms</option>
+              <option value="1000">1,000 ms</option>
+            </select>
+          </label>
+        </div>
+        <label class="checkrow">
+          <input id="excludeAutomated" type="checkbox" checked />
+          <span>Exclude obvious no-reply / automated addresses</span>
+        </label>
+        <div class="buttons">
+          <button id="start" class="primary" type="button">Start new collection</button>
+          <button id="pause" type="button" disabled>Pause</button>
+          <button id="resume" type="button" disabled>Resume</button>
+          <button id="stop" type="button" disabled>Stop</button>
+          <button id="clearSaved" type="button">Clear saved job</button>
+          <button id="testConnection" type="button">Test npm connection</button>
+        </div>
+        <p class="hint">Discovery never sends email. Contacts are synced to the backend for review. Keep this tab open while a collection runs.</p>
+      </section>
+
+      <section class="stats">
+        <div class="stat"><strong id="emailCount">0</strong><span>discovered</span></div>
+        <div class="stat"><strong id="newCount">0</strong><span>new eligible</span></div>
+        <div class="stat"><strong id="contactedCountStat">0</strong><span>already contacted</span></div>
+        <div class="stat"><strong id="suppressedCountStat">0</strong><span>suppressed</span></div>
+        <div class="stat"><strong id="invalidCountStat">0</strong><span>invalid</span></div>
+        <div class="stat"><strong id="packageCount">0</strong><span>packages inspected</span></div>
+        <div class="stat"><strong id="discoveredCount">0</strong><span>packages discovered</span></div>
+        <div class="stat"><strong id="status">Idle</strong><span>status</span></div>
+      </section>
+
+      <section class="card">
+        <div class="progressTop">
+          <span id="progressText">No collection running.</span>
+          <span id="percent">0%</span>
+        </div>
+        <div class="progress"><div id="bar"></div></div>
+        <div class="buttons exportButtons">
+          <button id="copy" type="button" disabled>Copy unique emails</button>
+          <button id="csv" type="button" disabled>Download CSV</button>
+        </div>
+      </section>
+
+      <section class="card tableCard">
+        <div class="tableTitle">
+          <h2>Collected public emails</h2>
+          <span id="resultSummary">0 results</span>
+        </div>
+        <div class="tableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Email</th>
+                <th>Name</th>
+                <th>Package</th>
+                <th>Source</th>
+                <th>Status</th>
+                <th>Package URL</th>
+              </tr>
+            </thead>
+            <tbody id="results"></tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+
+    <section data-panel="contacts" hidden>
+      <section class="card">
+        <div class="toolbar">
+          <input id="contactSearch" type="text" placeholder="Search email, name, or package" />
+          <button id="contactSearchBtn" type="button">Search</button>
+          <select id="contactFilter">
+            <option value="">All</option>
+            <option value="NEW">New</option>
+            <option value="CONTACTED">Contacted</option>
+            <option value="QUEUED">Queued</option>
+            <option value="SUPPRESSED">Suppressed</option>
+            <option value="INVALID">Invalid</option>
+          </select>
+          <button id="selectAllNew" type="button" class="primary">Select all new</button>
+          <button id="clearSelection" type="button">Clear selection</button>
+        </div>
+        <p id="selectionHint" class="hint">0 contacts selected.</p>
+        <div class="tableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th></th>
+                <th>Email</th>
+                <th>Name</th>
+                <th>Package</th>
+                <th>Source</th>
+                <th>Status</th>
+                <th>First discovered</th>
+                <th>Last contacted</th>
+              </tr>
+            </thead>
+            <tbody id="contactsBody"></tbody>
+          </table>
+        </div>
+        <div class="pager">
+          <button id="contactPrev" type="button">Previous</button>
+          <span id="contactPageLabel">Page 1</span>
+          <button id="contactNext" type="button">Next</button>
+        </div>
+      </section>
+    </section>
+
+    <section data-panel="campaigns" hidden>
+      <div class="split">
+        <section class="card">
+          <div class="tableTitle"><h2>Campaigns</h2><button id="newCampaign" type="button">New</button></div>
+          <div id="campaignList" class="stack"></div>
+        </section>
+        <section class="card">
+          <h2>Create campaign</h2>
+          <label><span>Name</span><input id="campaignName" type="text" placeholder="React Maintainers Outreach" /></label>
+          <label><span>Subject</span><input id="campaignSubject" type="text" placeholder="Question about {{package}}" /></label>
+          <label><span>Body</span><textarea id="campaignBody" rows="8"></textarea></label>
+          <p class="hint">Tokens: {{name}} {{firstName}} {{email}} {{package}} {{packageUrl}}. Empty names fall back to a plain greeting.</p>
+          <div class="preview">
+            <strong id="previewSubject">Subject preview</strong>
+            <pre id="previewBody"></pre>
+          </div>
+          <div class="buttons">
+            <button id="saveCampaign" type="button">Save draft</button>
+            <button id="queueCampaign" class="primary" type="button">Queue campaign</button>
+          </div>
+          <div class="reviewGrid">
+            <div class="stat mini"><strong id="reviewSelected">0</strong><span>selected</span></div>
+            <div class="stat mini"><strong id="reviewContacted">0</strong><span>previously contacted</span></div>
+            <div class="stat mini"><strong id="reviewSuppressed">0</strong><span>suppressed</span></div>
+            <div class="stat mini"><strong id="reviewInvalid">0</strong><span>invalid</span></div>
+            <div class="stat mini"><strong id="reviewEligible">0</strong><span>eligible</span></div>
+          </div>
+        </section>
+      </div>
+
+      <section id="campaignDetail" class="card" hidden>
+        <div class="tableTitle">
+          <h2 id="detailName">Campaign</h2>
+          <span id="detailStatus" class="status-badge">DRAFT</span>
+        </div>
+        <div class="progressTop"><span id="detailProgress">0/0 sent</span></div>
+        <div class="progress"><div id="detailBar"></div></div>
+        <div id="detailCounts" class="stats compact"></div>
+        <div class="buttons">
+          <button id="campaignStart" type="button">Start</button>
+          <button id="campaignPause" type="button">Pause</button>
+          <button id="campaignResume" type="button">Resume</button>
+          <button id="campaignCancel" type="button">Cancel</button>
+        </div>
+        <div class="tableWrap">
+          <table>
+            <thead>
+              <tr><th>Email</th><th>Name</th><th>Package</th><th>Status</th><th>Sent at</th><th>Error</th></tr>
+            </thead>
+            <tbody id="campaignRecipients"></tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+
+    <section data-panel="gmail" hidden>
+      <section class="card gmailCard">
+        <h2>Gmail</h2>
+        <p><span id="gmailState" class="status-badge pending-sync">Not connected</span></p>
+        <p id="gmailEmail">Connect a Gmail account before queueing a campaign.</p>
+        <p class="hint">The extension never sees a Gmail password or OAuth refresh token. Google consent stays on the backend.</p>
+        <div class="buttons">
+          <button id="connectGmail" class="primary" type="button">Connect Gmail</button>
+          <button id="disconnectGmail" type="button" hidden>Disconnect</button>
+        </div>
+      </section>
+    </section>
+
+    <section data-panel="history" hidden>
+      <section class="card">
+        <div class="toolbar">
+          <input id="historySearch" type="text" placeholder="Search recipient, campaign, package, or message id" />
+          <button id="historySearchBtn" type="button">Search</button>
+          <input id="historyPage" type="hidden" value="1" />
+        </div>
+        <div class="tableWrap">
+          <table>
+            <thead>
+              <tr><th>Recipient</th><th>Campaign</th><th>Package</th><th>Sent at</th><th>Gmail message ID</th><th>Status</th></tr>
+            </thead>
+            <tbody id="historyBody"></tbody>
+          </table>
+        </div>
+        <div class="pager">
+          <button id="historyPrev" type="button">Previous</button>
+          <span id="historyPageLabel">Page 1</span>
+          <button id="historyNext" type="button">Next</button>
+        </div>
+      </section>
+    </section>
+
+    <section class="card logCard">
+      <div class="tableTitle"><h2>Activity</h2><button id="clearLog" type="button">Clear log</button></div>
+      <pre id="log"></pre>
+    </section>
+
+    <footer>
+      This extension only reads email addresses already published in npm registry metadata. Sending happens later, one recipient at a time, after you queue a campaign.
+    </footer>
+  </main>
+
+  <div id="modal" class="modal hidden">
+    <div class="modalCard" role="dialog" aria-modal="true">
+      <h3>Confirm</h3>
+      <p id="modalBody"></p>
+      <div class="buttons">
+        <button id="modalCancel" type="button">Cancel</button>
+        <button id="modalConfirm" class="primary" type="button">Confirm</button>
+      </div>
+    </div>
+  </div>
+  <div id="toasts"></div>
+  <script src="collector.js"></script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Outreach settings</title>
+  <link rel="stylesheet" href="collector.css" />
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <div>
+        <h1>Backend connection</h1>
+        <p>The API key is stored only in this browser. It is a development shared secret, not a Gmail password.</p>
+      </div>
+    </header>
+    <section class="card">
+      <label>
+        <span>Backend URL</span>
+        <input id="backendUrl" type="text" placeholder="http://localhost:3000" />
+      </label>
+      <label>
+        <span>API key</span>
+        <input id="apiKey" type="text" placeholder="BACKEND_API_KEY" autocomplete="off" />
+      </label>
+      <div class="buttons">
+        <button id="save" class="primary" type="button">Save</button>
+        <button id="test" type="button">Test connection</button>
+      </div>
+      <p id="result" class="hint">Not tested yet.</p>
+    </section>
+  </main>
+  <script src="options.js"></script>
+</body>
+</html>

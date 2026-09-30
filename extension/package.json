@@ -1,0 +1,19 @@
+{
+  "name": "npm-public-email-collector",
+  "version": "3.0.0",
+  "private": true,
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.287",
+    "@typescript-eslint/eslint-plugin": "^8.18.0",
+    "@typescript-eslint/parser": "^8.18.0",
+    "esbuild": "^0.24.2",
+    "eslint": "^8.57.1",
+    "typescript": "^5.7.2"
+  }
+}

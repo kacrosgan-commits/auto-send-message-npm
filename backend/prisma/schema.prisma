@@ -1,0 +1,178 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ContactStatus {
+  NEW
+  QUEUED
+  CONTACTED
+  BOUNCED
+  INVALID
+  UNSUBSCRIBED
+  BLOCKED
+}
+
+enum CampaignStatus {
+  DRAFT
+  QUEUED
+  RUNNING
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum RecipientStatus {
+  PENDING
+  QUEUED
+  PROCESSING
+  SENT
+  FAILED
+  SKIPPED
+  CANCELLED
+}
+
+enum SuppressionReason {
+  ALREADY_CONTACTED
+  UNSUBSCRIBED
+  HARD_BOUNCE
+  COMPLAINT
+  INVALID
+  MANUAL_BLOCK
+}
+
+model Contact {
+  id                String        @id @default(uuid()) @db.Uuid
+  email             String
+  normalizedEmail   String        @unique
+  name              String?
+  firstName         String?
+  lastName          String?
+  status            ContactStatus @default(NEW)
+  firstDiscoveredAt DateTime
+  lastDiscoveredAt  DateTime
+  firstSentAt       DateTime?
+  lastSentAt        DateTime?
+  sendCount         Int           @default(0)
+  unsubscribeToken  String        @unique
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  sources           ContactSource[]
+  recipients        CampaignRecipient[]
+
+  @@index([status])
+  @@index([lastDiscoveredAt])
+}
+
+model ContactSource {
+  id           String   @id @default(uuid()) @db.Uuid
+  contactId    String   @db.Uuid
+  sourceType   String
+  packageName  String
+  packageUrl   String?
+  npmKeyword   String?
+  sourceRole   String
+  discoveredAt DateTime @default(now())
+  contact      Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([contactId, packageName, sourceRole, sourceType])
+  @@index([contactId])
+  @@index([packageName])
+}
+
+model Campaign {
+  id          String         @id @default(uuid()) @db.Uuid
+  name        String
+  subject     String
+  bodyText    String
+  bodyHtml    String?
+  status      CampaignStatus @default(DRAFT)
+  createdAt   DateTime       @default(now())
+  startedAt   DateTime?
+  pausedAt    DateTime?
+  completedAt DateTime?
+  recipients  CampaignRecipient[]
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model CampaignRecipient {
+  id              String          @id @default(uuid()) @db.Uuid
+  campaignId      String          @db.Uuid
+  contactId       String          @db.Uuid
+  status          RecipientStatus @default(PENDING)
+  scheduledAt     DateTime?
+  sentAt          DateTime?
+  attempts        Int             @default(0)
+  gmailMessageId  String?
+  gmailThreadId   String?
+  lastError       String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  campaign        Campaign        @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contact         Contact         @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, contactId])
+  @@index([status])
+  @@index([sentAt])
+  @@index([campaignId, status])
+}
+
+model Suppression {
+  id              String            @id @default(uuid()) @db.Uuid
+  normalizedEmail String            @unique
+  reason          SuppressionReason
+  notes           String?
+  createdAt       DateTime          @default(now())
+
+  @@index([reason])
+}
+
+model GmailAccount {
+  id                    String   @id @default(uuid()) @db.Uuid
+  email                 String
+  googleAccountId       String   @unique
+  encryptedRefreshToken String
+  scopes                String
+  connectedAt           DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  isActive              Boolean  @default(true)
+
+  @@index([isActive])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  eventType  String
+  entityType String
+  entityId   String?
+  metadata   Json
+  createdAt  DateTime @default(now())
+
+  @@index([eventType])
+  @@index([createdAt])
+  @@index([entityType, entityId])
+}
+
+model SendReconciliation {
+  id                   String   @id @default(uuid()) @db.Uuid
+  campaignRecipientId  String   @unique
+  gmailMessageId       String
+  gmailThreadId        String?
+  normalizedEmail      String
+  error                String
+  resolved             Boolean  @default(false)
+  createdAt            DateTime @default(now())
+}
+
+model OauthState {
+  id        String   @id @default(uuid()) @db.Uuid
+  state     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
