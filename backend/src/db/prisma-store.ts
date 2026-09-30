@@ -10,7 +10,7 @@ import {
   RecipientRecord,
   ReconciliationRecord,
   SuppressionRecord,
-} from './types';
+} from './types.js';
 
 type DbClient = PrismaClient | Prisma.TransactionClient;
 

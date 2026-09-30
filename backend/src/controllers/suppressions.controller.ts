@@ -1,9 +1,9 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { SUPPRESSION_REASONS } from '@npm-outreach/shared';
-import { OutreachDb } from '../db/types';
-import { removeSuppression, suppressEmail } from '../services/suppression/suppression-service';
-import { parseBody } from '../utils/validate';
+import { OutreachDb } from '../db/types.js';
+import { removeSuppression, suppressEmail } from '../services/suppression/suppression-service.js';
+import { parseBody } from '../utils/validate.js';
 
 const createSchema = z.object({
   email: z.string().min(3).max(320),

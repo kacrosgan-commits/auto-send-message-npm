@@ -1,15 +1,15 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { CONTACT_STATUSES } from '@npm-outreach/shared';
-import { AppConfig } from '../config/env';
-import { OutreachDb } from '../db/types';
-import { AppError } from '../utils/errors';
-import { parseBody, parseQuery, pageQuerySchema } from '../utils/validate';
+import { AppConfig } from '../config/env.js';
+import { OutreachDb } from '../db/types.js';
+import { AppError } from '../utils/errors.js';
+import { parseBody, parseQuery, pageQuerySchema } from '../utils/validate.js';
 import {
   queueCampaign,
   selectCampaignRecipients,
   setCampaignControl,
-} from '../services/campaigns/campaign-service';
+} from '../services/campaigns/campaign-service.js';
 
 const createSchema = z.object({
   name: z.string().trim().min(1).max(200),

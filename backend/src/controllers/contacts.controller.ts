@@ -1,9 +1,9 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { CONTACT_STATUSES } from '@npm-outreach/shared';
-import { OutreachDb } from '../db/types';
-import { contactStats, ingestContacts, listContacts } from '../services/contacts/contact-service';
-import { parseBody, parseQuery } from '../utils/validate';
+import { OutreachDb } from '../db/types.js';
+import { contactStats, ingestContacts, listContacts } from '../services/contacts/contact-service.js';
+import { parseBody, parseQuery } from '../utils/validate.js';
 
 const ingestSchema = z.object({
   contacts: z.array(z.object({

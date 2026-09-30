@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { AppError } from '../utils/errors';
+import { AppError } from '../utils/errors.js';
 
 export function parseBody<S extends z.ZodTypeAny>(schema: S, body: unknown): z.infer<S> {
   const result = schema.safeParse(body);

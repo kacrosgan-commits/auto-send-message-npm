@@ -1,7 +1,7 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
-import { AppConfig } from '../config/env';
-import { OutreachDb } from '../db/types';
-import { beginGoogleAuth, completeGoogleAuth, disconnectGmail, getGmailAccountView } from '../services/gmail/gmail-service';
+import { AppConfig } from '../config/env.js';
+import { OutreachDb } from '../db/types.js';
+import { beginGoogleAuth, completeGoogleAuth, disconnectGmail, getGmailAccountView } from '../services/gmail/gmail-service.js';
 
 function escapeHtml(value: string): string {
   return value

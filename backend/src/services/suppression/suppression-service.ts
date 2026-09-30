@@ -1,6 +1,6 @@
 import { isValidEmail, normalizeEmail, SuppressionReason } from '@npm-outreach/shared';
-import { OutreachDb } from '../../db/types';
-import { AppError } from '../../utils/errors';
+import { OutreachDb } from '../../db/types.js';
+import { AppError } from '../../utils/errors.js';
 
 export async function suppressEmail(
   db: OutreachDb,

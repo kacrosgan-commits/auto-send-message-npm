@@ -1,10 +1,10 @@
 import { google } from 'googleapis';
-import { AppConfig } from '../../config/env';
-import { OutreachDb } from '../../db/types';
-import { AppError } from '../../utils/errors';
-import { decryptString, encryptString, randomToken } from '../../utils/crypto';
-import { buildRawGmailMessage } from '../../utils/gmail';
-import { GmailSender } from '../queue/process-send';
+import { AppConfig } from '../../config/env.js';
+import { OutreachDb } from '../../db/types.js';
+import { AppError } from '../../utils/errors.js';
+import { decryptString, encryptString, randomToken } from '../../utils/crypto.js';
+import { buildRawGmailMessage } from '../../utils/gmail.js';
+import { GmailSender } from '../queue/process-send.js';
 
 const SCOPES = [
   'openid',

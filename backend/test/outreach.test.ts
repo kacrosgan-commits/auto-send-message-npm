@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { isNoreplyAddress, normalizeEmail, renderTemplate, retryDelayMs } from '@npm-outreach/shared';
-import { createMemoryDb } from '../src/db/memory';
-import { selectCampaignRecipients, queueCampaign } from '../src/services/campaigns/campaign-service';
-import { ingestContacts } from '../src/services/contacts/contact-service';
-import { GmailSender, processSendJob } from '../src/services/queue/process-send';
-import { OutreachDb } from '../src/db/types';
+import { createMemoryDb } from '../src/db/memory.js';
+import { selectCampaignRecipients, queueCampaign } from '../src/services/campaigns/campaign-service.js';
+import { ingestContacts } from '../src/services/contacts/contact-service.js';
+import { GmailSender, processSendJob } from '../src/services/queue/process-send.js';
+import { OutreachDb } from '../src/db/types.js';
 
 async function ingestOne(db: OutreachDb, email: string, packageName: string, role = 'maintainer', name = 'John Smith') {
   return ingestContacts(db, [{ email, name, packageName, packageUrl: `https://www.npmjs.com/package/${packageName}`, keyword: 'react', role }]);

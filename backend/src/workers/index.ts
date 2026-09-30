@@ -1,7 +1,7 @@
 import 'dotenv/config';
-import { loadConfig } from '../config/env';
-import { createPrismaClient, createPrismaStore, prepareDatabase } from '../db/prisma-store';
-import { createSendQueue } from '../services/queue/boss';
+import { loadConfig } from '../config/env.js';
+import { createPrismaClient, createPrismaStore, prepareDatabase } from '../db/prisma-store.js';
+import { createSendQueue } from '../services/queue/boss.js';
 
 async function main() {
   const config = loadConfig();

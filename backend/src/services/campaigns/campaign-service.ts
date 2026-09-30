@@ -4,8 +4,8 @@ import {
   RecipientSelectionResult,
   SuppressionReason,
 } from '@npm-outreach/shared';
-import { ContactRecord, OutreachDb } from '../../db/types';
-import { AppError, isUniqueViolation } from '../../utils/errors';
+import { ContactRecord, OutreachDb } from '../../db/types.js';
+import { AppError, isUniqueViolation } from '../../utils/errors.js';
 
 export type QueueClass = 'eligible' | 'alreadyContacted' | 'suppressed' | 'invalid' | 'alreadyQueued';
 

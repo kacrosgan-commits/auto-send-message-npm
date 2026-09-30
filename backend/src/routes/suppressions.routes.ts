@@ -1,8 +1,8 @@
 import { FastifyInstance } from 'fastify';
-import { AppConfig } from '../config/env';
-import { suppressionsController } from '../controllers/suppressions.controller';
-import { OutreachDb } from '../db/types';
-import { requireApiKey } from '../middleware/auth';
+import { AppConfig } from '../config/env.js';
+import { suppressionsController } from '../controllers/suppressions.controller.js';
+import { OutreachDb } from '../db/types.js';
+import { requireApiKey } from '../middleware/auth.js';
 
 const sensitive = { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } };
 

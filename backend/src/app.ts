@@ -1,15 +1,15 @@
 import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
 import Fastify, { FastifyInstance } from 'fastify';
-import { AppConfig } from './config/env';
-import { OutreachDb } from './db/types';
-import { sendError } from './middleware/auth';
-import { registerCampaignRoutes } from './routes/campaigns.routes';
-import { registerContactRoutes } from './routes/contacts.routes';
-import { registerGmailRoutes } from './routes/gmail.routes';
-import { registerHistoryRoutes } from './routes/index';
-import { registerSuppressionRoutes } from './routes/suppressions.routes';
-import { AppError } from './utils/errors';
+import { AppConfig } from './config/env.js';
+import { OutreachDb } from './db/types.js';
+import { sendError } from './middleware/auth.js';
+import { registerCampaignRoutes } from './routes/campaigns.routes.js';
+import { registerContactRoutes } from './routes/contacts.routes.js';
+import { registerGmailRoutes } from './routes/gmail.routes.js';
+import { registerHistoryRoutes } from './routes/index.js';
+import { registerSuppressionRoutes } from './routes/suppressions.routes.js';
+import { AppError } from './utils/errors.js';
 
 export interface AppDeps {
   config: AppConfig;

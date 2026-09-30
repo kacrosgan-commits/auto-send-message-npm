@@ -1,6 +1,6 @@
 import { rateLimitDecision, renderTemplate, retryDelayMs } from '@npm-outreach/shared';
-import { ContactRecord, OutreachDb, RecipientRecord } from '../../db/types';
-import { errorMessage, isTransientError } from '../../utils/gmail';
+import { ContactRecord, OutreachDb, RecipientRecord } from '../../db/types.js';
+import { errorMessage, isTransientError } from '../../utils/gmail.js';
 
 const PAUSE_REQUEUE_MS = 30_000;
 const IN_FLIGHT_MS = 120_000;

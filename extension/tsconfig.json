@@ -7,7 +7,6 @@
     "noEmit": true,
     "lib": ["ES2022", "DOM"],
     "types": ["chrome"],
-    "baseUrl": ".",
     "paths": {
       "@npm-outreach/shared": ["../shared/src/index.ts"]
     },

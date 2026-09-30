@@ -12,10 +12,10 @@ import {
   splitName,
   SuppressionReason,
 } from '@npm-outreach/shared';
-import { SuppressionRecord } from '../../db/types';
-import { OutreachDb } from '../../db/types';
-import { isUniqueViolation } from '../../utils/errors';
-import { randomToken } from '../../utils/crypto';
+import { SuppressionRecord } from '../../db/types.js';
+import { OutreachDb } from '../../db/types.js';
+import { isUniqueViolation } from '../../utils/errors.js';
+import { randomToken } from '../../utils/crypto.js';
 
 function statusForSuppression(reason: SuppressionReason): ContactStatus {
   if (reason === 'UNSUBSCRIBED') return 'UNSUBSCRIBED';

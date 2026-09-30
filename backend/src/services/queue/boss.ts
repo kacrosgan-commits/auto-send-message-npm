@@ -1,8 +1,8 @@
 import { PrismaClient } from '@prisma/client';
-import { AppConfig } from '../../config/env';
-import { OutreachDb } from '../../db/types';
-import { createGmailSender } from '../gmail/gmail-service';
-import { processSendJob } from './process-send';
+import { AppConfig } from '../../config/env.js';
+import { OutreachDb } from '../../db/types.js';
+import { createGmailSender } from '../gmail/gmail-service.js';
+import { processSendJob } from './process-send.js';
 
 export const GMAIL_SEND_QUEUE = 'gmail-send';
 

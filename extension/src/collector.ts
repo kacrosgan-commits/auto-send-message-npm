@@ -27,6 +27,7 @@ let contactSearch = '';
 let selectedIds = new Set<string>();
 let selectAllNew = false;
 let activeCampaignId = '';
+let activeCampaignStatus = '';
 
 type ContactRow = {
   id: string;
@@ -389,6 +390,7 @@ async function loadCampaigns() {
       button.textContent = `${campaign.name} · ${campaign.status} · ${sent} sent`;
       button.addEventListener('click', () => {
         activeCampaignId = campaign.id;
+        activeCampaignStatus = campaign.status;
         ($('campaignName') as HTMLInputElement).value = campaign.name;
         ($('campaignSubject') as HTMLInputElement).value = campaign.subject;
         ($('campaignBody') as HTMLTextAreaElement).value = campaign.bodyText;
@@ -422,26 +424,28 @@ async function saveCampaign(): Promise<string> {
   if (!payload.name || !payload.subject || !payload.bodyText) {
     throw new ApiError(0, 'VALIDATION', 'Campaign name, subject, and body are required.');
   }
-  if (!activeCampaignId) {
-    const created = await apiRequest<{ campaign: CampaignRow }>(settings, '/api/campaigns', { method: 'POST', body: JSON.stringify(payload) });
-    activeCampaignId = created.campaign.id;
-    log(`Campaign created: ${created.campaign.name}`);
-    return created.campaign.id;
+  if (activeCampaignId && activeCampaignStatus === 'DRAFT') {
+    await apiRequest(settings, `/api/campaigns/${activeCampaignId}`, { method: 'PATCH', body: JSON.stringify(payload) });
+    return activeCampaignId;
   }
-  await apiRequest(settings, `/api/campaigns/${activeCampaignId}`, { method: 'PATCH', body: JSON.stringify(payload) });
-  return activeCampaignId;
+  if (activeCampaignId && activeCampaignStatus === 'PAUSED') return activeCampaignId;
+  const created = await apiRequest<{ campaign: CampaignRow }>(settings, '/api/campaigns', { method: 'POST', body: JSON.stringify(payload) });
+  activeCampaignId = created.campaign.id;
+  activeCampaignStatus = created.campaign.status || 'DRAFT';
+  log(`Campaign created: ${created.campaign.name}`);
+  return created.campaign.id;
 }
 
 async function reviewAndQueue() {
   try {
+    if (!selectAllNew && selectedIds.size === 0) {
+      toast('Open Contacts and click Select all new, or check the people you want to email.', 'error');
+      return;
+    }
     const id = await saveCampaign();
     const body = selectAllNew
       ? { filter: { status: 'NEW' } }
       : { contactIds: [...selectedIds] };
-    if (!selectAllNew && selectedIds.size === 0) {
-      toast('Select contacts, or use Select all new.', 'error');
-      return;
-    }
     const preview = await apiRequest<{
       selected: number;
       eligible: number;
@@ -493,6 +497,7 @@ async function loadCampaignDetail() {
       counts: Record<string, number>;
       recipients: { items: Array<{ email: string; name: string | null; packageName: string | null; status: string; sentAt: string | null; lastError: string | null }>; total: number };
     }>(settings, `/api/campaigns/${activeCampaignId}?limit=50`);
+    activeCampaignStatus = data.campaign.status;
     $('detailName').textContent = data.campaign.name;
     $('detailStatus').textContent = data.campaign.status;
     $('detailStatus').className = `status-badge ${data.campaign.status.toLowerCase()}`;
@@ -765,10 +770,13 @@ function bind() {
   });
   $('newCampaign').addEventListener('click', () => {
     activeCampaignId = '';
+    activeCampaignStatus = '';
     ($('campaignName') as HTMLInputElement).value = '';
     ($('campaignSubject') as HTMLInputElement).value = '';
     ($('campaignBody') as HTMLTextAreaElement).value = 'Hi {{firstName}},\n\nI came across your work on {{package}}.\n';
+    $('campaignDetail').hidden = true;
     updatePreview();
+    void loadCampaigns();
   });
   $('queueCampaign').addEventListener('click', () => void reviewAndQueue());
   $('campaignStart').addEventListener('click', () => void campaignAction('start'));

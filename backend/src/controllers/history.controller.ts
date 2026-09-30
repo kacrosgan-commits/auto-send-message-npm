@@ -1,6 +1,6 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
-import { OutreachDb } from '../db/types';
-import { parseQuery, pageQuerySchema } from '../utils/validate';
+import { OutreachDb } from '../db/types.js';
+import { parseQuery, pageQuerySchema } from '../utils/validate.js';
 
 export function historyController(db: OutreachDb) {
   return {

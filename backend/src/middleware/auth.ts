@@ -1,7 +1,7 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
-import { AppConfig } from '../config/env';
-import { AppError } from '../utils/errors';
-import { safeEqual } from '../utils/crypto';
+import { AppConfig } from '../config/env.js';
+import { AppError } from '../utils/errors.js';
+import { safeEqual } from '../utils/crypto.js';
 
 export function requireApiKey(config: AppConfig) {
   return async (request: FastifyRequest): Promise<void> => {

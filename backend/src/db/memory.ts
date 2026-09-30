@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import { CampaignStatus, ContactStatus, RecipientStatus } from '@npm-outreach/shared';
-import { UniqueViolation } from '../utils/errors';
+import { UniqueViolation } from '../utils/errors.js';
 import {
   AuditRecord,
   CampaignRecord,
@@ -14,7 +14,7 @@ import {
   ReconciliationRecord,
   SendWindowStats,
   SuppressionRecord,
-} from './types';
+} from './types.js';
 
 interface MemoryData {
   contacts: ContactRecord[];
